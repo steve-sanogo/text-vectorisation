@@ -17,4 +17,4 @@ Les fonctionnalités finales seront naturellement définies en collaboration ave
 - **Farah Mohamed Walid**
 - **Blami Farouk Gnankambary**  
 - **Asma Nihal Boukraa**  
-- **Steve Sanogo**
+- **M. Steve B. Sanogo**
