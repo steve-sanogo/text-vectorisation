@@ -1,4 +1,4 @@
-from vectorizer import build_frequency_vector
+from frequence import build_frequency_vector
 
 texte = """L'intelligence artificielle est un domaine fascinant de l'informatique.
     L'intelligence artificielle permet de créer des systèmes capables d'apprendre
