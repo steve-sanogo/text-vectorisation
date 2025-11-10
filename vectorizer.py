@@ -1,96 +1,119 @@
-# vectorizer.py
+# ===============================================
+# vectorizer.py — version robuste avec fallback
+# ===============================================
+
 from __future__ import annotations
 from collections import Counter
 from typing import List, Tuple
+from langdetect import detect
+import spacy
+from spacy.cli import download
 import re
 
-# ------------------------------
-# 1. Stopwords de base (FR + EN)
-# ------------------------------
-BASIC_STOPWORDS = {
-    # Français
-    "le", "la", "les", "l", "un", "une", "des", "de", "du", "au", "aux",
-    "et", "ou", "mais", "donc", "or", "ni", "car",
-    "je", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles",
-    "ce", "cet", "cette", "ces",
-    "que", "qui", "quoi", "dont", "où",
-    "ne", "pas", "plus", "moins",
-    # clitiques d'une lettre (français parlé)
-    "d", "c", "j", "t", "m", "s", "n",
-
-    # Anglais basique
-    "a", "an", "the", "is", "are", "was", "were", "of", "in", "to",
-    "for", "and", "or", "that", "this", "with", "on", "at", "by"
+# --------------------------------------------
+# 1. Dictionnaire des modèles spaCy disponibles
+# --------------------------------------------
+LANG_MODELS = {
+    "fr": "fr_core_news_sm",  # Français
+    "en": "en_core_web_sm",   # Anglais
 }
 
-# Regex pour extraire les mots (lettres/chiffres)
-TOKEN_RE = re.compile(r"\w+", flags=re.UNICODE)
+_loaded_models: dict[str, spacy.Language] = {}
 
-# Regex pour séparer les apostrophes : l', d', j', t', m', s', n', c'
 APOS_CLITIC_RE = re.compile(r"\b([cdjlmnst])['’]", flags=re.IGNORECASE)
 
 
-# ------------------------------
-# 2. Tokenisation / prétraitement
-# ------------------------------
+# --------------------------------------------------------
+# 2. Détection automatique de la langue et chargement modèle
+# --------------------------------------------------------
 
-def tokenize(text: str) -> List[str]:
+def load_model_for_text(text: str) -> spacy.Language:
     """
-    Découpe le texte en mots simples, en gérant les apostrophes.
-    Exemple :
-        "L'intelligence artificielle" -> ["l", "intelligence", "artificielle"]
+    Détecte la langue du texte, charge le modèle spaCy correspondant.
+    Si le modèle n’est pas installé, il est téléchargé automatiquement.
+    Si le téléchargement échoue, un modèle vide est utilisé pour ne pas planter.
     """
-    # uniformiser les apostrophes
+    try:
+        lang_code = detect(text)
+    except Exception:
+        lang_code = "en"  # Par défaut, anglais si détection impossible
+
+    model_name = LANG_MODELS.get(lang_code, "en_core_web_sm")
+
+    if model_name not in _loaded_models:
+        try:
+            _loaded_models[model_name] = spacy.load(model_name)
+            print(f" Modèle chargé : {model_name}")
+        except OSError:
+            print(f"⚠️ Modèle {model_name} introuvable. Tentative de téléchargement...")
+            try:
+                download(model_name)
+                _loaded_models[model_name] = spacy.load(model_name)
+                print(f" Modèle {model_name} téléchargé et chargé avec succès.")
+            except Exception as e:
+                print(f"Impossible de charger ou télécharger le modèle {model_name}.")
+                print(f" Erreur : {e}")
+                print("⚙️ Utilisation d’un modèle linguistique vide (sans lemmatisation).")
+                _loaded_models[model_name] = spacy.blank(lang_code if lang_code in LANG_MODELS else "en")
+
+    return _loaded_models[model_name]
+
+
+# ---------------------------------------
+# 3. Prétraitement + lemmatisation complète
+# ---------------------------------------
+
+def preprocess_and_lemmatize(text: str) -> List[str]:
+    """
+    Nettoie le texte, détecte la langue, lemmatise et filtre les stopwords.
+    Fonctionne automatiquement pour le français et l’anglais.
+    """
+    # Uniformiser les apostrophes et séparer les clitiques
     text = text.replace("’", "'")
-    # séparer les clitiques (l', d', j', etc.)
     text = APOS_CLITIC_RE.sub(r"\1 ", text)
-    # extraire les mots et passer en minuscule
-    return [t.lower() for t in TOKEN_RE.findall(text)]
+
+    # Charger le modèle adapté
+    nlp = load_model_for_text(text)
+    doc = nlp(text)
+
+    tokens: List[str] = []
+    for token in doc:
+        if not token.is_alpha:
+            continue
+        if token.is_stop:
+            continue
+        tokens.append(token.lemma_.lower() if token.lemma_ else token.text.lower())
+
+    return tokens
 
 
-def filter_stopwords(tokens: List[str], include_stopwords: bool) -> List[str]:
+# -------------------------------------
+# 4. Construction du vecteur de fréquence
+# -------------------------------------
+
+def build_frequency_vector(text: str) -> Tuple[List[int], List[str]]:
     """
-    Si include_stopwords == False, enlève les mots vides (stopwords).
-    Sinon, retourne les tokens tels quels.
+    Construit le vecteur des fréquences de mots lemmatisés.
+    Compatible français / anglais et robuste en cas d'erreur modèle.
     """
-    if include_stopwords:
-        return tokens
-    return [t for t in tokens if t not in BASIC_STOPWORDS]
-
-
-# ------------------------------
-# 3. Fonction principale
-# ------------------------------
-
-def build_frequency_vector(
-    text: str,
-    include_stopwords: bool = False,
-) -> Tuple[List[int], List[str]]:
-    """
-    Construit le vecteur complet des fréquences des mots présents dans le texte.
-
-    :param text: texte à analyser
-    :param include_stopwords: True -> garde les stopwords
-                              False -> les enlève
-
-    :return: (vector, words)
-             - vector : liste des fréquences
-             - words  : liste des mots correspondants (même ordre)
-    """
-    # 1) Nettoyage et découpe
-    tokens = tokenize(text)
-
-    # 2) Filtrage des stopwords si besoin
-    tokens = filter_stopwords(tokens, include_stopwords=include_stopwords)
-
-    # 3) Comptage des fréquences
+    tokens = preprocess_and_lemmatize(text)
     counter = Counter(tokens)
-
-    # 4) Tri par fréquence décroissante puis alphabétique
     items = sorted(counter.items(), key=lambda x: (-x[1], x[0]))
-
-    # 5) Construction du vecteur complet (tous les mots)
     words = [w for w, _ in items]
     vector = [freq for _, freq in items]
-
     return vector, words
+
+
+# -------------------------------------
+# 5. Exemple d'utilisation directe
+# -------------------------------------
+if __name__ == "__main__":
+    text = """
+
+    The children eat red apples.
+    """
+
+    vector, words = build_frequency_vector(text)
+    print("\n🔍 Mots lemmatisés les plus fréquents :")
+    for w, f in zip(words[:10], vector[:10]):
+        print(f"{w:15s} → {f}")
