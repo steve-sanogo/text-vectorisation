@@ -9,13 +9,8 @@ from sklearn.preprocessing import normalize
 # On suppose que tu as déjà ces fonctions dans ton pipeline "frequence.py"
 # - preprocess_and_lemmatize(text, include_stopwords=False) -> List[str] (tokens)
 # - load_model_for_text(text) (si besoin côté TF-IDF Wikipédia)
-try:
-    from frequence import preprocess_and_lemmatize  # ton tokenizer spaCy + options
-except Exception as e:
-    raise ImportError(
-        "Impossible d'importer preprocess_and_lemmatize depuis frequence.py. "
-        "Assure-toi que frequence.py expose bien cette fonction."
-    )
+from frequence import preprocess_and_lemmatize  # ton tokenizer spaCy + options
+
 
 
 # -----------------------------
@@ -65,7 +60,6 @@ def _top_contributing_terms(
 def text_similarity_tfidf(
     text_a: str,
     text_b: str,
-    include_stopwords: bool = False,
     ngram_range: Tuple[int, int] = (1, 1),
     sublinear_tf: bool = True,
     use_idf: bool = True,
@@ -104,7 +98,7 @@ def text_similarity_tfidf(
         # Vectorizer fondé sur TON tokenizer
         vectorizer = TfidfVectorizer(
             tokenizer=lambda txt: preprocess_and_lemmatize(
-                txt, include_stopwords=include_stopwords
+                txt
             ),
             lowercase=False,      # déjà géré dans ton preprocess
             token_pattern=None,   # on passe un tokenizer custom -> ignorer le pattern par défaut
@@ -174,7 +168,6 @@ def jaccard_similarity(
 def similarity_score(
     text_a: str,
     text_b: str,
-    include_stopwords: bool = False,
     ngram_range: Tuple[int, int] = (1, 1),
 ) -> float:
     """
@@ -184,7 +177,6 @@ def similarity_score(
     res = text_similarity_tfidf(
         text_a,
         text_b,
-        include_stopwords=include_stopwords,
         ngram_range=ngram_range,
         return_details=False,
     )
