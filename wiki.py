@@ -26,11 +26,13 @@ def load_small_wiki_corpus_fr(
 def build_tfidf_on_wikipedia_corpus(
     wiki_corpus: List[str],
     top_n: int = 20,
-) -> Tuple[List[str], List[float]]:
+) -> Tuple[List[str], List[float], List[float], List[float]]:
     """
-    Calcule les TF-IDF des mots SUR le corpus Wikipédia.
-    On ne regarde pas un texte utilisateur, juste Wikipédia.
-    On renvoie les mots les plus importants dans le corpus wiki.
+    Calcule TF, IDF et TF-IDF des mots SUR le corpus Wikipédia.
+    On renvoie les mots les plus importants du corpus wiki, avec :
+      - TF moyen
+      - IDF
+      - TF-IDF moyen
     """
 
     # 1) TF + IDF apprises sur Wikipédia (et appliquées sur Wikipédia)
@@ -38,20 +40,28 @@ def build_tfidf_on_wikipedia_corpus(
         tokenizer=preprocess_and_lemmatize,
         lowercase=False,
         token_pattern=None,
+        norm=None,      # <--- important : pas de normalisation L2 automatique
+        use_idf=True,
     )
 
-    # Ici on utilise fit_transform parce qu'on travaille UNIQUEMENT sur wiki
+    # fit_transform sur le corpus wiki -> TF * IDF
     X = vectorizer.fit_transform(wiki_corpus)
 
     feature_names = vectorizer.get_feature_names_out()
+    idf = vectorizer.idf_  # IDF de chaque mot
 
-    # 2) On fait la moyenne des scores TF-IDF sur tous les articles wiki
-    scores = np.asarray(X.mean(axis=0)).ravel()
+    # 2) Moyenne des scores TF-IDF sur tous les articles wiki
+    tfidf_mean = np.asarray(X.mean(axis=0)).ravel()
 
-    # 3) On prend les top_n mots les plus importants
-    idx_sorted = np.argsort(-scores)[:top_n]
+    # 3) En déduire le TF moyen : TF = (TF-IDF) / IDF
+    tf_mean = tfidf_mean / idf
 
-    top_words = [feature_names[i] for i in idx_sorted]
-    top_scores = [float(scores[i]) for i in idx_sorted]
+    # 4) On prend les top_n mots selon TF-IDF moyen
+    idx_sorted = np.argsort(-tfidf_mean)[:top_n]
 
-    return top_words, top_scores
+    top_words   = [feature_names[i]      for i in idx_sorted]
+    top_tfs     = [float(tf_mean[i])     for i in idx_sorted]
+    top_idfs    = [float(idf[i])         for i in idx_sorted]
+    top_tfidfs  = [float(tfidf_mean[i])  for i in idx_sorted]
+
+    return top_words, top_tfs, top_idfs, top_tfidfs

@@ -12,12 +12,10 @@ if __name__ == "__main__":
 
     # 2) Calculer les TF-IDF sur ce corpus
     print("⚙️ Calcul des TF-IDF sur le corpus Wikipédia...")
-    top_words, top_scores = build_tfidf_on_wikipedia_corpus(
-        wiki_corpus,
-        top_n=30,  # nombre de mots à afficher
-    )
+    top_words, top_tfs, top_idfs, top_tfidfs = build_tfidf_on_wikipedia_corpus(
+    wiki_corpus,
+    top_n=30,
+)
 
-    # 3) Afficher les résultats
-    print("\n Mots les plus importants dans ce mini-corpus Wikipédia :")
-    for w, s in zip(top_words, top_scores):
-        print(f"{w:25s} → {s:.4f}")
+    for w, tf, idf, tfidf in zip(top_words, top_tfs, top_idfs, top_tfidfs):
+        print(f"{w:25s}  TF={tf:.4f}  IDF={idf:.4f}  TF-IDF={tfidf:.4f}")
