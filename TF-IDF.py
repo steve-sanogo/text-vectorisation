@@ -5,7 +5,7 @@
 from typing import List, Tuple
 from sklearn.feature_extraction.text import TfidfVectorizer
 import numpy as np
-from  frequence import preprocess_and_lemmatize, load_model_for_text  # ✅ réutilisation de ton pipeline
+from  frequence import preprocess_and_lemmatize, load_model_for_text  
 
 # --------------------------------------------------------
 # 1. Construction des vecteurs TF-IDF
@@ -17,7 +17,7 @@ def build_tfidf_vectors(
 ) -> Tuple[List[str], List[float]]:
     """
     Calcule les scores TF-IDF pour un texte.
-    Utilise la lemmatisation et le filtrage définis dans vectorizer.py.
+    Utilise la lemmatisation et le filtrage définis dans frequence.py.
     Retourne (mots, scores) triés par importance décroissante.
     """
     # Charger le modèle pour découper le texte en phrases (pseudo-corpus)
