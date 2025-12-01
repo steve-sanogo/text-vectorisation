@@ -23,28 +23,35 @@ def load_small_wiki_corpus_fr(
 
     return corpus
 
-def build_tfidf_vectors_wikipedia(
-    text: str,
+def build_tfidf_on_wikipedia_corpus(
     wiki_corpus: List[str],
     top_n: int = 20,
 ) -> Tuple[List[str], List[float]]:
     """
-    Calcule les scores TF-IDF de `text` par rapport à un corpus Wikipédia.
+    Calcule les TF-IDF des mots SUR le corpus Wikipédia.
+    On ne regarde pas un texte utilisateur, juste Wikipédia.
+    On renvoie les mots les plus importants dans le corpus wiki.
     """
-    # 1) Apprendre IDF sur le corpus Wikipédia
+
+    # 1) TF + IDF apprises sur Wikipédia (et appliquées sur Wikipédia)
     vectorizer = TfidfVectorizer(
         tokenizer=preprocess_and_lemmatize,
         lowercase=False,
         token_pattern=None,
     )
-    vectorizer.fit(wiki_corpus)
 
-    # 2) Appliquer au texte utilisateur
-    X = vectorizer.transform([text])
+    # Ici on utilise fit_transform parce qu'on travaille UNIQUEMENT sur wiki
+    X = vectorizer.fit_transform(wiki_corpus)
+
     feature_names = vectorizer.get_feature_names_out()
-    scores = np.asarray(X.toarray()).ravel()
 
+    # 2) On fait la moyenne des scores TF-IDF sur tous les articles wiki
+    scores = np.asarray(X.mean(axis=0)).ravel()
+
+    # 3) On prend les top_n mots les plus importants
     idx_sorted = np.argsort(-scores)[:top_n]
+
     top_words = [feature_names[i] for i in idx_sorted]
     top_scores = [float(scores[i]) for i in idx_sorted]
+
     return top_words, top_scores

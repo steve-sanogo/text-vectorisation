@@ -98,7 +98,8 @@ def text_similarity_tfidf(
         # Vectorizer fondé sur TON tokenizer
         vectorizer = TfidfVectorizer(
             tokenizer=lambda txt: preprocess_and_lemmatize(
-                txt
+                txt,
+                 include_stopwords=False,
             ),
             lowercase=False,      # déjà géré dans ton preprocess
             token_pattern=None,   # on passe un tokenizer custom -> ignorer le pattern par défaut

@@ -106,6 +106,7 @@ def preprocess_and_lemmatize(
     *,
     remove_accents: bool = True,
     min_len: int = 2,
+    include_stopwords: bool = False,   # <--- AJOUT
 ) -> List[str]:
     """
     Pipeline pro:
@@ -124,12 +125,11 @@ def preprocess_and_lemmatize(
 
     tokens: List[str] = []
     for token in doc:
-        # garde uniquement lettres (spaCy gère ponctuation)
         if not token.is_alpha:
             continue
         lemma = (token.lemma_ or token.text).lower()
-        # filtre stopwords + clitiques + longueur min
-        if token.is_stop:
+        # filtre stopwords seulement si include_stopwords == False
+        if not include_stopwords and token.is_stop:
             continue
         if lemma in CLITIC_STOPWORDS:
             continue
@@ -137,32 +137,20 @@ def preprocess_and_lemmatize(
             continue
         tokens.append(lemma)
     return tokens
-
 # --------------------------------------------
 # 6) Fréquences
 # --------------------------------------------
-def build_frequency_vector(text: str) -> Tuple[List[int], List[str]]:
+def build_frequency_vector(
+    text: str,
+    include_stopwords: bool = False,
+) -> Tuple[List[int], List[str]]:
     """
     Construit le vecteur des fréquences de mots lemmatisés (FR/EN).
     """
-    tokens = preprocess_and_lemmatize(text)
+    tokens = preprocess_and_lemmatize(text, include_stopwords=include_stopwords)
     counter = Counter(tokens)
     items = sorted(counter.items(), key=lambda x: (-x[1], x[0]))
     words = [w for w, _ in items]
     vector = [freq for _, freq in items]
     return vector, words
 
-# --------------------------------------------
-# 7) Démo
-# --------------------------------------------
-if __name__ == "__main__":
-    text = """
-    Lire en anglais est une excellente habitude pour améliorer son niveau de langue,
-    de même qu’écouter la radio anglophone ou regarder des films en anglais. Cette activité
-    permet de se familiariser avec des tournures de phrase et d’assimiler de nouveaux mots
-    de vocabulaire dans leur contexte. Contact: exemple@mail.com — site: https://exemple.org
-    """
-    vector, words = build_frequency_vector(text)
-    print("\n Mots lemmatisés les plus fréquents :")
-    for w, f in zip(words[:15], vector[:15]):
-        print(f"{w:15s} → {f}")

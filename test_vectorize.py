@@ -8,8 +8,7 @@ texte = """L'intelligence artificielle est un domaine fascinant de l'informatiqu
     est une branche importante de l'intelligence artificielle."""
 vec, mots = build_frequency_vector(
     text=texte,
-    include_stopwords=False,  # on enlève les mots vides
-                    
+    include_stopwords=True,  # on enlève les mots vides              
 )
 
 print("Mots  :", mots)
