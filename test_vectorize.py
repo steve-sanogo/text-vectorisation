@@ -1,5 +1,5 @@
 from frequence import build_frequency_vector
-if __name__ == "__main__":
+def test():
     # Petit texte de test
     text = """
     L'intelligence artificielle est un domaine fascinant de l'informatique.

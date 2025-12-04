@@ -24,6 +24,7 @@ def load_small_wiki_corpus_fr(
     return corpus
 
 def build_tfidf_on_wikipedia_corpus(
+    text: str,   
     wiki_corpus: List[str],
     top_n: int = 20,
 ) -> Tuple[List[str], List[float], List[float], List[float]]:
@@ -37,31 +38,32 @@ def build_tfidf_on_wikipedia_corpus(
 
     # 1) TF + IDF apprises sur Wikipédia (et appliquées sur Wikipédia)
     vectorizer = TfidfVectorizer(
-        tokenizer=preprocess_and_lemmatize,
+        tokenizer=lambda txt: preprocess_and_lemmatize(
+        txt,
+        include_stopwords=False,),
         lowercase=False,
         token_pattern=None,
         norm=None,      # <--- important : pas de normalisation L2 automatique
         use_idf=True,
     )
-
+    vectorizer.fit(wiki_corpus)
     # fit_transform sur le corpus wiki -> TF * IDF
-    X = vectorizer.fit_transform(wiki_corpus)
-
+    X = vectorizer.transform([text])   
     feature_names = vectorizer.get_feature_names_out()
     idf = vectorizer.idf_  # IDF de chaque mot
 
     # 2) Moyenne des scores TF-IDF sur tous les articles wiki
-    tfidf_mean = np.asarray(X.mean(axis=0)).ravel()
+    tfidf = X.toarray().ravel() 
 
     # 3) En déduire le TF moyen : TF = (TF-IDF) / IDF
-    tf_mean = tfidf_mean / idf
+    tf = tfidf / idf
 
     # 4) On prend les top_n mots selon TF-IDF moyen
-    idx_sorted = np.argsort(-tfidf_mean)[:top_n]
+    idx_sorted = np.argsort(-tfidf)[:top_n]   # tu peux aussi trier sur -tf si tu préfères
 
-    top_words   = [feature_names[i]      for i in idx_sorted]
-    top_tfs     = [float(tf_mean[i])     for i in idx_sorted]
-    top_idfs    = [float(idf[i])         for i in idx_sorted]
-    top_tfidfs  = [float(tfidf_mean[i])  for i in idx_sorted]
+    top_words  = [feature_names[i] for i in idx_sorted]
+    top_tfs    = [float(tf[i])     for i in idx_sorted]
+    top_idfs   = [float(idf[i])    for i in idx_sorted]
+    top_tfidfs = [float(tfidf[i])  for i in idx_sorted]
 
     return top_words, top_tfs, top_idfs, top_tfidfs

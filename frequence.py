@@ -103,10 +103,9 @@ def load_model_for_text(text: str) -> spacy.Language:
 # --------------------------------------------
 def preprocess_and_lemmatize(
     text: str,
-    *,
     remove_accents: bool = True,
     min_len: int = 2,
-    include_stopwords: bool = False,   # <--- AJOUT
+    include_stopwords: bool = False ,   # <--- AJOUT
 ) -> List[str]:
     """
     Pipeline pro:
