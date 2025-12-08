@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Resumer texte</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f8f9fa;
+      color: #222;
+      max-width: 700px;
+      margin: 40px auto;
+      padding: 20px;
+    }
+    textarea {
+      width: 100%;
+      height: 150px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      resize: none;
+      font-size: 14px;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 20px;
+      font-size: 15px;
+      margin-top: 10px;
+      cursor: pointer;
+    }
+    button:hover { background: #0056b3; }
+    label { display: flex; align-items: center; margin-top: 10px; }
+    input[type="checkbox"]{ margin-right: 8px; }
+    .pourcentage{margin-top: 20px;}
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 8px;
+      border-bottom: 1px solid #ddd;
+      text-align: left;
+    }
+    th { background-color: #e9ecef; }
+    .loading { color: #007bff; margin-top: 10px; }
+    .p_de_pource { display: inline; }
+  </style>
+</head>
+<body>
+  <h1>Resumer texte</h1>
+
+<form id="monFormulaire">
+  <textarea id="message" name="message" placeholder="Écris ton texte ici..."></textarea>
+
+<!-- 
+  <label>
+    <input type="checkbox" id="stopwords"> Ignorer les mots vides
+  </label> -->
+
+  
+<div class="pourcentage">
+<p class="p_de_pource">Entrer le pourcentage du resumer</p>
+<input type="number" name="pourcentage" id="pourcentage" min="1" max="100">
+</div>  
+
+   <button id="analyze" type="submit">lancer</button>
+</form>
+
+<div id="status" class="loading"></div>
+  <!-- <div id="results"></div> -->
+  <h3>Resultat Résumer</h3>
+  <p id="resultat"></p>
+  <table id="resultatTableau" border="1">
+  <thead>
+    <tr>
+      <th>Mot</th>
+      <th>TF (texte)</th>
+      <th>IDF (wiki)</th>
+      <th>TF-IDF</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+  <script>
+document.getElementById('monFormulaire').addEventListener('submit', function(e) {
+  e.preventDefault();
+
+  const message = document.getElementById('message').value;
+  const pourcentage = document.getElementById('pourcentage').value;
+
+  fetch('http://127.0.0.1:5000/TF_IDF', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ message: message})
+  })
+  .then(response => response.json())
+  .then(data => {
+    // console.log('Réponse du serveur :', data);
+    const tbody = document.querySelector('#resultatTableau tbody');
+    // tbody.innerHTML = ''; // Vide le tableau avant d'ajouter
+
+    
+    // for (const [mot, TF,IDF,TFIDF] of Object.entries(data)) {
+    //   const ligne = document.createElement('tr');
+    //   ligne.innerHTML = `<td>${mot}</td><td>${TF}</td><td>${IDF}</td><td>${TFIDF}</td>`;
+    //   tbody.appendChild(ligne);
+    // }
+
+
+    for (let i = 0; i < data.mot.length; i++) {
+    const ligne = document.createElement('tr');
+    ligne.innerHTML = `
+      <td>${data.mot[i]}</td>
+      <td>${data.tf[i]}</td>
+      <td>${data.idf[i]}</td>
+      <td>${data.TF_IDF[i]}</td>
+    `;
+    tbody.appendChild(ligne);
+  }
+  });
+});
+
+
+
+    // const analyzeBtn = document.getElementById("analyze");
+    // const statusDiv = document.getElementById("status");
+    // const resultsDiv = document.getElementById("results");
+
+    // analyzeBtn.addEventListener("click", async () => {
+    //   const text = document.getElementById("text").value.trim();
+    //   const removeStopwords = document.getElementById("stopwords").checked;
+
+    //   if (!text) {
+    //     alert("Écris quelque chose avant de lancer l’analyse.");
+    //     return;
+    //   }
+
+    //   statusDiv.textContent = "Analyse en cours...";
+    //   resultsDiv.innerHTML = "";
+
+    //   try {
+    //     const response = await fetch("http://192.168.1.25:5000", {
+    //       method: "POST",
+    //       headers: { "Content-Type": "application/json" },
+    //       body: JSON.stringify({ text})
+    //     });
+
+    //     if (!response.ok) throw new Error("Erreur côté serveur");
+    //     const data = await response.json();
+
+    //     if (!data.length) {
+    //       resultsDiv.innerHTML = "<p>Aucun mot trouvé.</p>";
+    //       return;
+    //     }
+
+    //     let html = `
+    //       <table>
+    //         <thead><tr><th>Mot</th><th>Fréquence</th></tr></thead>
+    //         <tbody>
+    //     `;
+    //     data.forEach(item => {
+    //       html += `<tr><td>${item.word}</td><td>${item.count}</td></tr>`;
+    //     });
+    //     html += "</tbody></table>";
+    //     resultsDiv.innerHTML = html;
+    //   } catch (err) {
+    //     resultsDiv.innerHTML = `<p style="color:red;">${err.message}</p>`;
+    //   } finally {
+    //     statusDiv.textContent = "";
+    //   }
+    // });
+  </script>
+</body>
+</html>
+

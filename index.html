@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accueil</title>
+</head>
+<style>
+    body {
+      display: flex;
+      justify-content: center;   /* centre horizontalement */
+      align-items: center;       /* centre verticalement */
+      height: 100vh;             /* prend toute la hauteur de l'écran */
+      margin: 0;                 /* supprime les marges par défaut */
+      flex-direction: column;    /* empile les boutons verticalement */
+    }
+
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 20px;
+      font-size: 15px;
+      margin-top: 10px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+</style>
+<body>
+    <button onclick="window.location.href='resumer_simple.html'">Résumer simple (x% du texte)</button>
+    <button onclick="window.location.href='resumer_par_similarite.html'">Résumer (trié par similarité)</button>
+    <button onclick="window.location.href='resumer_par_ordre.html'">Résumer (trié par ordre d'apparition)</button>
+    <button onclick="window.location.href='TF_IDF.html'">TF_IDF</button>
+</body>
+</html>
