@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 from typing import List, Tuple, Dict
-import re  # <-- ajouté pour découper en phrases
+import re
 
 from frequence import preprocess_and_lemmatize
 from TF_IDF_score import build_tfidf_vectors  # adapte si le nom du fichier change
@@ -82,8 +82,6 @@ def score_window_overlap(
     """
     Score très simple :
       = nombre de mots de la requête présents dans la fenêtre.
-
-    Plus il y a de mots en commun, plus le score est élevé.
     """
     if not window_tokens:
         return 0.0
@@ -101,9 +99,6 @@ def score_window_tfidf(
     Score pondéré par TF-IDF :
       = somme des scores TF-IDF des mots qui sont à la fois
         dans la fenêtre ET dans la requête.
-
-    Idée :
-      - les mots rares/important (hauts TF-IDF) pèsent plus lourd.
     """
     if not window_tokens:
         return 0.0
@@ -264,7 +259,7 @@ def find_top_k_snippets(
     )
     if not query_tokens:
         # si la requête ne donne rien, on retourne les premières phrases brutes
-        results = []
+        results: List[Tuple[str, int, float]] = []
         for idx, s in enumerate(sentences[:k]):
             words = s.split()
             snippet_raw = " ".join(words[:max_words])
@@ -280,7 +275,7 @@ def find_top_k_snippets(
         )
 
     # 3) On score chaque phrase
-    scored_snippets = []
+    scored_snippets: List[Tuple[str, int, float]] = []
 
     for idx, sent in enumerate(sentences):
         if not sent.strip():
@@ -306,7 +301,7 @@ def find_top_k_snippets(
 
         scored_snippets.append((snippet_raw, idx, score))
 
-    # 4) On trie par score décroissant, puis par index de phrase (pour stabilité)
+    # 4) On trie par score décroissant, puis par index de phrase
     scored_snippets.sort(key=lambda x: (-x[2], x[1]))
 
     # 5) On retourne les k meilleurs
