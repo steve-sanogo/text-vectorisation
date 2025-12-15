@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test TF-IDF Snippets</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background-color: #f4f4f9; }
+        h1 { color: #333; text-align: center; }
+        .container { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        
+        label { font-weight: bold; margin-top: 10px; display: block; }
+        textarea { width: 100%; height: 150px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-family: monospace; }
+        input[type="text"], input[type="number"] { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        
+        /* Styles pour la checkbox */
+        .checkbox-container { display: flex; align-items: center; background: #f8f9fa; padding: 10px; border-radius: 4px; border: 1px solid #dee2e6; margin-bottom: 15px; }
+        .checkbox-container input { width: auto; margin-right: 10px; transform: scale(1.2); }
+        .checkbox-container label { margin: 0; cursor: pointer; }
+
+        .controls { display: flex; gap: 10px; margin-top: 15px; }
+        button { flex: 1; padding: 12px; border: none; border-radius: 4px; color: white; font-size: 16px; cursor: pointer; transition: background 0.3s; }
+        .btn-blue { background-color: #007bff; }
+        .btn-blue:hover { background-color: #0056b3; }
+        .btn-green { background-color: #28a745; }
+        .btn-green:hover { background-color: #1e7e34; }
+
+        .result-box { margin-top: 25px; padding: 15px; border: 1px solid #ddd; background: #fff; border-radius: 4px; display: none; }
+        .result-title { font-size: 1.2em; margin-bottom: 10px; color: #444; border-bottom: 2px solid #eee; padding-bottom: 5px; }
+        .snippet-item { background: #eef; padding: 10px; margin-bottom: 8px; border-left: 4px solid #007bff; border-radius: 2px; }
+        .meta { font-size: 0.85em; color: #666; margin-bottom: 5px; display: block; }
+        .badge { background: #6c757d; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.8em; margin-left: 5px;}
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Moteur de Recherche de Snippets</h1>
+
+    <label for="document">1. Document (Texte source)</label>
+    <textarea id="document" placeholder="Collez votre article ou texte long ici...">L'intelligence artificielle est un domaine de l'informatique qui vise à créer des systèmes capables de reproduire certains comportements considérés comme intelligents. Au fil des décennies, les chercheurs ont proposé de nombreuses approches différentes...</textarea>
+
+    <label for="query">2. Requête (Mots clés)</label>
+    <input type="text" id="query" placeholder="Ex: intelligence artificielle système" value="intelligence artificielle système">
+
+    <div style="display: flex; gap: 20px; align-items: flex-end;">
+        <div style="flex:1">
+            <label for="windowSize">Taille Fenêtre (mots)</label>
+            <input type="number" id="windowSize" value="40">
+        </div>
+        <div style="flex:1">
+            <label for="topK">Nombre de phrases (Top K)</label>
+            <input type="number" id="topK" value="3">
+        </div>
+    </div>
+
+    <div class="checkbox-container">
+        <input type="checkbox" id="useTfidf" checked>
+        <label for="useTfidf">Activer la pondération <strong>TF-IDF</strong> (si décoché : comptage simple)</label>
+    </div>
+
+    <div class="controls">
+        <button class="btn-blue" onclick="chercherBestSnippet()">🔍 Meilleur Passage (Fenêtre)</button>
+        <button class="btn-green" onclick="chercherTopK()">📑 Top Phrases Clés</button>
+    </div>
+
+    <div id="output" class="result-box">
+        <div class="result-title" id="outputTitle">Résultats</div>
+        <div id="outputContent"></div>
+    </div>
+</div>
+
+<script>
+    const API_URL = "http://127.0.0.1:5000";
+
+    async function chercherBestSnippet() {
+        const doc = document.getElementById('document').value;
+        const query = document.getElementById('query').value;
+        const windowSize = parseInt(document.getElementById('windowSize').value);
+        // On récupère l'état de la case à cocher (true ou false)
+        const useTfidf = document.getElementById('useTfidf').checked;
+
+        const outputDiv = document.getElementById('output');
+        const outputContent = document.getElementById('outputContent');
+        const outputTitle = document.getElementById('outputTitle');
+
+        if(!doc || !query) { alert("Veuillez remplir le document et la requête."); return; }
+
+        outputDiv.style.display = 'block';
+        outputTitle.innerText = "Meilleur Passage (Contexte continu)";
+        outputContent.innerHTML = "<em>Chargement en cours...</em>";
+
+        try {
+            const response = await fetch(`${API_URL}/best_snippet`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    document: doc,
+                    query: query,
+                    window_size: windowSize,
+                    use_tfidf: useTfidf // On envoie l'option au backend
+                })
+            });
+
+            if (!response.ok) throw new Error("Erreur serveur");
+            const data = await response.json();
+
+            // Affichage
+            outputContent.innerHTML = `
+                <div class="snippet-item">
+                    <span class="meta">
+                        Score: <strong>${data.score}</strong> 
+                        <span class="badge">${data.method}</span>
+                        | Position mot: ${data.position_debut}
+                    </span>
+                    <p>"${data.snippet}"</p>
+                </div>
+            `;
+
+        } catch (error) {
+            console.error(error);
+            outputContent.innerHTML = `<span style="color:red">Erreur serveur. Vérifiez la console.</span>`;
+        }
+    }
+
+    async function chercherTopK() {
+        const doc = document.getElementById('document').value;
+        const query = document.getElementById('query').value;
+        const kVal = parseInt(document.getElementById('topK').value);
+        // Note: Pour TopK on utilise généralement toujours TF-IDF ou un score, 
+        // mais on peut envoyer le paramètre si ta fonction python le supporte.
+        // Ici je le force à true pour TopK, ou tu peux le lier à la checkbox aussi.
+        const useTfidf = document.getElementById('useTfidf').checked;
+
+        const outputDiv = document.getElementById('output');
+        const outputContent = document.getElementById('outputContent');
+        const outputTitle = document.getElementById('outputTitle');
+
+        if(!doc || !query) { alert("Veuillez remplir le document et la requête."); return; }
+
+        outputDiv.style.display = 'block';
+        outputTitle.innerText = `Top ${kVal} Phrases Pertinentes`;
+        outputContent.innerHTML = "<em>Chargement en cours...</em>";
+
+        try {
+            const response = await fetch(`${API_URL}/top_k_snippets`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    document: doc,
+                    query: query,
+                    k: kVal,
+                    use_tfidf: useTfidf 
+                })
+            });
+
+            if (!response.ok) throw new Error("Erreur serveur");
+            const data = await response.json();
+
+            if (data.resultats && data.resultats.length > 0) {
+                let html = "";
+                data.resultats.forEach((item, index) => {
+                    html += `
+                        <div class="snippet-item" style="border-color: #28a745; background: #eef9ee;">
+                            <span class="meta">#${index + 1} | Score: ${item.score} | Index phrase: ${item.index_phrase}</span>
+                            <p>"${item.texte}"</p>
+                        </div>
+                    `;
+                });
+                outputContent.innerHTML = html;
+            } else {
+                outputContent.innerHTML = "<p>Aucun résultat trouvé.</p>";
+            }
+
+        } catch (error) {
+            console.error(error);
+            outputContent.innerHTML = `<span style="color:red">Erreur serveur.</span>`;
+        }
+    }
+</script>
+
+</body>
+</html>
