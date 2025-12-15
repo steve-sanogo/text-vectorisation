@@ -126,36 +126,29 @@ def TfIDF():
 ############################
 @app.route("/best_snippet", methods=['POST'])
 def get_best_snippet():
-    """
-    Attend un JSON :
-    {
-        "document": "Texte complet...",
-        "query": "Mots clés...",
-        "window_size": 50 (optionnel),
-        "use_tfidf": true (optionnel)
-    }
-    """
     data = request.get_json()
     
-    # Récupération des données avec valeurs par défaut
     document = data.get('document', '')
     requete = data.get('query', '')
     fenetre = data.get('window_size', 50)
-    use_tfidf = data.get('use_tfidf', True) # Par défaut on utilise TF-IDF
+    
+    # On récupère le booléen (True ou False) envoyé par le HTML
+    # Par défaut on met True si rien n'est envoyé
+    use_tfidf = data.get('use_tfidf', True) 
 
-    # Appel de ta fonction logique
+    print(f"Recherche lancée avec TF-IDF = {use_tfidf}") # Pour le debug
+
     snippet, pos, score = find_best_snippet(
         document_text=document,
         query_text=requete,
         window_size=fenetre,
-        use_tfidf=use_tfidf,
+        use_tfidf=use_tfidf, # On passe la variable ici
         tfidf_top_n=200
     )
 
-    # Construction du dictionnaire de réponse
     resultat = {
         "type": "best_snippet",
-        "method": "TF-IDF" if use_tfidf else "Simple Count",
+        "method": "TF-IDF" if use_tfidf else "Fréquence Simple", # On renvoie le nom de la méthode
         "position_debut": pos,
         "score": round(score, 4),
         "snippet": snippet
@@ -186,13 +179,14 @@ def get_top_k_snippets():
     k_val = data.get('k', 5)
     max_words = data.get('max_words', 50)
 
+    use_tfidf = data.get('use_tfidf', True) 
     # Appel de ta fonction logique
     top_snippets = find_top_k_snippets(
         document_text=document,
         query_text=requete,
         k=k_val,
         max_words=max_words,
-        use_tfidf=True,
+        use_tfidf=use_tfidf,
         tfidf_top_n=200
     )
 
