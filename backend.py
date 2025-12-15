@@ -15,7 +15,7 @@ from summary import (
 
 from wiki import load_small_wiki_corpus_fr, build_tfidf_on_wikipedia_corpus
 
-
+from snippets import find_best_snippet, find_top_k_snippets
 
 
 # texte = """L'intelligence artificielle est un domaine fascinant de l'informatique.
@@ -123,6 +123,101 @@ def TfIDF():
         mimetype='application/json'
     )
 
+############################
+@app.route("/best_snippet", methods=['POST'])
+def get_best_snippet():
+    """
+    Attend un JSON :
+    {
+        "document": "Texte complet...",
+        "query": "Mots clés...",
+        "window_size": 50 (optionnel),
+        "use_tfidf": true (optionnel)
+    }
+    """
+    data = request.get_json()
+    
+    # Récupération des données avec valeurs par défaut
+    document = data.get('document', '')
+    requete = data.get('query', '')
+    fenetre = data.get('window_size', 50)
+    use_tfidf = data.get('use_tfidf', True) # Par défaut on utilise TF-IDF
+
+    # Appel de ta fonction logique
+    snippet, pos, score = find_best_snippet(
+        document_text=document,
+        query_text=requete,
+        window_size=fenetre,
+        use_tfidf=use_tfidf,
+        tfidf_top_n=200
+    )
+
+    # Construction du dictionnaire de réponse
+    resultat = {
+        "type": "best_snippet",
+        "method": "TF-IDF" if use_tfidf else "Simple Count",
+        "position_debut": pos,
+        "score": round(score, 4),
+        "snippet": snippet
+    }
+
+    return Response(
+        json.dumps(resultat, sort_keys=False, ensure_ascii=False),
+        mimetype='application/json'
+    )
+
+# ---------------------------------------------------------
+# 2. Route pour les TOP K SNIPPETS (Phrases clés)
+# ---------------------------------------------------------
+@app.route("/top_k_snippets", methods=['POST'])
+def get_top_k_snippets():
+    """
+    Attend un JSON :
+    {
+        "document": "Texte complet...",
+        "query": "Mots clés...",
+        "k": 5 (optionnel)
+    }
+    """
+    data = request.get_json()
+
+    document = data.get('document', '')
+    requete = data.get('query', '')
+    k_val = data.get('k', 5)
+    max_words = data.get('max_words', 50)
+
+    # Appel de ta fonction logique
+    top_snippets = find_top_k_snippets(
+        document_text=document,
+        query_text=requete,
+        k=k_val,
+        max_words=max_words,
+        use_tfidf=True,
+        tfidf_top_n=200
+    )
+
+    # Transformation de la liste de tuples en liste de dictionnaires pour le JSON
+    # top_snippets est une liste de tuples : (texte, index, score)
+    resultats_formates = []
+    
+    if top_snippets:
+        for snippet_text, idx_phrase, score in top_snippets:
+            resultats_formates.append({
+                "index_phrase": idx_phrase,
+                "score": round(score, 4),
+                "texte": snippet_text
+            })
+
+    response_data = {
+        "requete": requete,
+        "nombre_resultats": len(resultats_formates),
+        "resultats": resultats_formates
+    }
+
+    return Response(
+        json.dumps(response_data, sort_keys=False, ensure_ascii=False),
+        mimetype='application/json'
+    )
 
 # print(" Chargement d'un petit corpus Wikipédia FR depuis Hugging Face...")
 # wiki_corpus = load_small_wiki_corpus_fr(max_articles=200)
