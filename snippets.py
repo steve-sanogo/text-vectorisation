@@ -1,13 +1,31 @@
 # ===============================================
-# snippets.py — recherche du meilleur snippet (extrait)
+# snippets.py — recherche des meilleurs snippets (extraits)
 # basé sur ta pipeline frequence.py + TF-IDF_score.py
 # ===============================================
 
 from __future__ import annotations
 from typing import List, Tuple, Dict
+import re  # <-- ajouté pour découper en phrases
 
 from frequence import preprocess_and_lemmatize
 from TF_IDF_score import build_tfidf_vectors  # adapte si le nom du fichier change
+
+
+# ------------------------------------------------
+# 0. Découpage en phrases (très simple)
+# ------------------------------------------------
+def split_sentences(text: str) -> List[str]:
+    """
+    Découpe un texte brut en phrases en se basant sur la ponctuation (. ? !).
+    Ce n'est pas parfait comme un vrai modèle NLP, mais suffisant pour nos snippets.
+    """
+    if not text:
+        return []
+
+    # On découpe après ., ? ou ! suivis d'au moins un espace
+    phrases = re.split(r"(?<=[\.\?\!])\s+", text.strip())
+    # On enlève les chaînes vides éventuelles
+    return [p.strip() for p in phrases if p.strip()]
 
 
 # ------------------------------------------------
@@ -99,7 +117,7 @@ def score_window_tfidf(
 
 
 # ------------------------------------------------
-# 4. Fonction principale : trouver le meilleur snippet (TEXTE BRUT)
+# 4. Fonction principale : trouver LE meilleur snippet (TEXTE BRUT)
 # ------------------------------------------------
 def find_best_snippet(
     document_text: str,
@@ -117,31 +135,10 @@ def find_best_snippet(
       - On retourne un extrait en TEXTE BRUT (pas lemmatisé).
       - La lemmatisation est utilisée UNIQUEMENT pour calculer le score.
 
-    Paramètres
-    ----------
-    document_text : str
-        Le texte complet (article, page web, etc.)
-    query_text : str
-        La requête (quelques mots, une phrase,…)
-    window_size : int
-        Taille de la fenêtre (en mots bruts, via text.split()).
-    include_stopwords : bool
-        Passé à preprocess_and_lemmatize pour les fenêtres (scoring).
-    use_tfidf : bool
-        Si True, on utilise un score pondéré TF-IDF.
-        Sinon, on utilise juste le chevauchement simple.
-    tfidf_top_n : int
-        Nombre de mots qu'on garde depuis build_tfidf_vectors
-        pour construire le dict de poids.
-
-    Retourne
-    --------
-    best_snippet_raw : str
-        Le meilleur extrait du document EN TEXTE BRUT.
-    best_start_word : int
-        Index du premier mot (brut) de la fenêtre dans document_text.split().
-    best_score : float
-        Score obtenu par ce snippet.
+    Retourne :
+      - best_snippet_raw : str  -> meilleur extrait brut
+      - best_start_word  : int  -> index du premier mot (brut)
+      - best_score       : float
     """
 
     # 0) Découper le document en mots BRUTS (pour l'extrait final)
@@ -220,3 +217,97 @@ def find_best_snippet(
     best_snippet_raw = " ".join(best_snippet_words)
 
     return best_snippet_raw, best_start_word, best_score
+
+
+# ------------------------------------------------
+# 5. NOUVEAU : trouver les k meilleurs snippets (phrases)
+# ------------------------------------------------
+def find_top_k_snippets(
+    document_text: str,
+    query_text: str,
+    k: int = 5,
+    max_words: int = 50,
+    include_stopwords: bool = False,
+    use_tfidf: bool = True,
+    tfidf_top_n: int = 100,
+) -> List[Tuple[str, int, float]]:
+    """
+    Retourne les k meilleurs snippets sous forme de phrases.
+
+    Approche :
+      - on découpe le texte en phrases (split_sentences)
+      - chaque phrase est tronquée à max_words mots
+      - on calcule un score pour chaque phrase (overlap ou TF-IDF)
+      - on retourne les k phrases avec le meilleur score
+
+    Paramètres :
+      - document_text : texte complet
+      - query_text    : requête (mots-clés, phrase...)
+      - k             : nombre de snippets à retourner (par ex. 5)
+      - max_words     : nombre max de mots par snippet (par ex. 50)
+
+    Retour :
+      Liste de tuples (snippet_brut, index_phrase, score)
+      triés par score décroissant.
+    """
+
+    # 0) Découpage en phrases brutes
+    sentences = split_sentences(document_text)
+
+    if not sentences:
+        return []
+
+    # 1) Tokens lemmatisés de la requête
+    query_tokens = tokenize_text_for_snippet(
+        query_text,
+        include_stopwords=False,
+    )
+    if not query_tokens:
+        # si la requête ne donne rien, on retourne les premières phrases brutes
+        results = []
+        for idx, s in enumerate(sentences[:k]):
+            words = s.split()
+            snippet_raw = " ".join(words[:max_words])
+            results.append((snippet_raw, idx, 0.0))
+        return results
+
+    # 2) TF-IDF global sur le texte si demandé
+    tfidf_weights: Dict[str, float] = {}
+    if use_tfidf:
+        tfidf_weights = build_tfidf_weight_dict(
+            document_text,
+            top_n=tfidf_top_n,
+        )
+
+    # 3) On score chaque phrase
+    scored_snippets = []
+
+    for idx, sent in enumerate(sentences):
+        if not sent.strip():
+            continue
+
+        # limitation en nombre de mots
+        sent_words = sent.split()
+        if max_words is not None and len(sent_words) > max_words:
+            snippet_raw = " ".join(sent_words[:max_words])
+        else:
+            snippet_raw = " ".join(sent_words)
+
+        # tokens lemmatisés pour le scoring
+        window_tokens = tokenize_text_for_snippet(
+            snippet_raw,
+            include_stopwords=include_stopwords,
+        )
+
+        if use_tfidf:
+            score = score_window_tfidf(window_tokens, query_tokens, tfidf_weights)
+        else:
+            score = score_window_overlap(window_tokens, query_tokens)
+
+        scored_snippets.append((snippet_raw, idx, score))
+
+    # 4) On trie par score décroissant, puis par index de phrase (pour stabilité)
+    scored_snippets.sort(key=lambda x: (-x[2], x[1]))
+
+    # 5) On retourne les k meilleurs
+    return scored_snippets[:k]
