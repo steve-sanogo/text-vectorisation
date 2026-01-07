@@ -18,3 +18,9 @@ Les fonctionnalités finales seront naturellement définies en collaboration ave
 - **Blami Farouk Gnankambary**  
 - **Asma Nihal Boukraa**  
 - **M. Steve B. Sanogo**
+
+## Organigramme de l'équipe
+![Organigramme de l'équipe](./Images/organigramme.png)
+
+## Architecture de la solution
+![Architecture générale](./Images/architecture.png)
